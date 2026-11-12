@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Pets, { loadGame, petStatBonus } from "./pets.jsx";
 
 // ===== ДАНІ ГЕРОЯ (змінюй тут) =====
 const HERO = {
@@ -283,7 +284,16 @@ function HeroPage({ h, onOpen }) {
 
 export default function Hero({ hero = HERO }) {
   const [page, setPage] = useState("hero");
+  const [, tick] = useState(0);
   const isHero = page === "hero";
+
+  const g = loadGame();
+  const h = {
+    ...hero,
+    gold: g.gold,
+    silver: g.silver,
+    stats: hero.stats.map((v) => v + petStatBonus(g)),
+  };
 
   return (
     <div style={s.page}>
@@ -294,14 +304,18 @@ export default function Hero({ hero = HERO }) {
           </button>
         )}
         <span style={s.topTitle}>{isHero ? "Мій герой" : TITLES[page]}</span>
-        <span style={{ fontSize: ".95rem" }}>🪙 {hero.gold} | 💎 {hero.crystals}</span>
+        <span style={{ fontSize: ".95rem" }}>
+          🪙 {h.gold} | ⚪ {h.silver}
+        </span>
       </div>
 
       {isHero ? (
-        <HeroPage h={hero} onOpen={setPage} />
+        <HeroPage h={h} onOpen={setPage} />
+      ) : page === "pet" ? (
+        <Pets onChange={() => tick((n) => n + 1)} />
       ) : (
         <div style={s.stub}>Розділ у розробці.</div>
       )}
     </div>
   );
-  }
+}
