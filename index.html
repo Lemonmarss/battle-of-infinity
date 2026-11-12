@@ -5,82 +5,156 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Битва Нескінченності</title>
 <style>
-body{margin:0;min-height:100vh;background:#0b0b1e;color:#fff;
-font-family:sans-serif;text-align:center;user-select:none;padding:16px;box-sizing:border-box}
-h1{font-size:1.6rem;margin:8px 0}
-.stats{display:flex;justify-content:space-around;color:#9aa;margin-bottom:12px}
-#enemy{font-size:110px;cursor:pointer;margin:10px 0;transition:transform .08s}
-#enemy.hit{transform:scale(.88)}
-.bar{height:16px;background:#2a2a4a;border-radius:8px;overflow:hidden;margin:0 auto;max-width:320px}
-#hp{height:100%;width:100%;background:#ef4444;transition:width .1s}
-button{display:block;width:100%;max-width:320px;margin:10px auto;padding:14px;
-font-size:1rem;border:0;border-radius:12px;background:#7c3aed;color:#fff}
-button:disabled{background:#3b3b5c;color:#888}
+*{box-sizing:border-box}
+body{margin:0;background:#17120d;color:#e8d9b5;font-family:sans-serif;
+user-select:none;padding-bottom:70px}
+#top{position:sticky;top:0;background:#0f0b07;border-bottom:2px solid #4a3a22;
+padding:12px 14px;display:flex;justify-content:space-between;align-items:center;z-index:5}
+#top b{color:#f0c050;font-size:1.1rem}
+#back{background:none;border:0;color:#f0c050;font-size:1.3rem;padding:0 8px 0 0}
+.item{display:block;width:100%;text-align:left;background:#211a12;color:#f0c050;
+border:0;border-bottom:1px dotted #4a3a22;padding:16px 14px;font-size:1.1rem}
+.item small{display:block;color:#9a8a68;font-size:.8rem;margin-top:3px}
+.card{padding:14px;border-bottom:1px solid #4a3a22}
+.sub{color:#9a8a68}
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px}
+.slot{background:#2a2016;border:2px solid #6b5230;border-radius:8px;
+padding:10px 2px;text-align:center;font-size:.75rem}
+.slot span{display:block;font-size:1.6rem}
+.btn{background:#7c3aed;color:#fff;border:0;border-radius:10px;padding:12px;
+font-size:1rem;width:100%;margin-top:8px}
+.btn:disabled{background:#3b3b3b;color:#888}
+#enemy{font-size:110px;text-align:center;cursor:pointer;margin:10px 0}
+.bar{height:16px;background:#2a2016;border-radius:8px;overflow:hidden}
+.bar div{height:100%;background:#ef4444}
+.row{display:flex;justify-content:space-between;padding:10px 14px;
+border-bottom:1px dotted #4a3a22}
+#nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0f0b07;
+border-top:2px solid #4a3a22}
+#nav button{flex:1;background:none;border:0;color:#9a8a68;padding:10px 0;font-size:.8rem}
+#nav button span{display:block;font-size:1.4rem}
+#nav button.on{color:#f0c050}
 </style>
 </head>
 <body>
-<h1>⚔️ Битва Нескінченності</h1>
-<div class="stats">
-  <div>Хвиля: <b id="wave">1</b></div>
-  <div>💰 <b id="gold">0</b></div>
-  <div>🗡️ <b id="dmg">1</b></div>
+<div id="top"></div>
+<div id="app"></div>
+<div id="nav">
+  <button data-p="home"><span>🏠</span>Головна</button>
+  <button data-p="hero"><span>🛡️</span>Мій герой</button>
+  <button data-p="clan"><span>🏰</span>Мій клан</button>
 </div>
-<div id="enemy">👹</div>
-<div class="bar"><div id="hp"></div></div>
-<p id="hptxt"></p>
-<button id="b1" onclick="buy(1)"></button>
-<button id="b2" onclick="buy(2)"></button>
 
 <script>
-const faces=["👹","👺","💀","👻","🐉","🧟","👾","🦂"];
-let s={wave:1,gold:0,dmg:1,auto:0,hp:10,max:10};
-try{const d=localStorage.getItem("boi");if(d)s=JSON.parse(d)}catch(e){}
+const KEY="boi2";
+let s={gold:0,wave:1,hp:10,max:10,xp:0,lvl:1,train:0,
+gear:[0,0,0,0,0,0,0,0],clanGold:0};
+try{const d=JSON.parse(localStorage.getItem(KEY));if(d)s=Object.assign(s,d)}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}}
 
 const $=id=>document.getElementById(id);
-const cost1=()=>Math.floor(10*Math.pow(1.5,s.dmg-1));
-const cost2=()=>Math.floor(25*Math.pow(1.6,s.auto));
+const GEAR=[["⛑️","Шолом"],["⚔️","Зброя"],["🥋","Броня"],["👖","Штани"],
+["🛡️","Щит"],["🧤","Рукавиці"],["👢","Чоботи"],["💍","Кільце"]];
+const faces=["👹","👺","💀","👻","🐉","🧟","👾","🦂"];
+const gearSum=()=>s.gear.reduce((a,b)=>a+b,0);
+const dmg=()=>1+s.train+gearSum();
+const power=()=>dmg()*10+s.lvl*50;
+const xpNeed=()=>20*s.lvl;
+const trainCost=()=>Math.floor(10*Math.pow(1.5,s.train));
+const gearCost=i=>Math.floor(15*Math.pow(1.5,s.gear[i]));
 
-function newEnemy(){
-  s.max=Math.floor(10*Math.pow(1.35,s.wave-1));
-  s.hp=s.max;
-  $("enemy").textContent=faces[(s.wave-1)%faces.length];
-}
-function hit(n){
-  s.hp-=n;
+// Структура сторінок: назва, батьківська сторінка
+const PAGES={
+ home:{t:"Головна",root:1},
+ hero:{t:"Мій герой",root:1},
+ clan:{t:"Мій клан",root:1},
+ arena:{t:"Арена",up:"home"},
+ adventure:{t:"Пригода",up:"home"},
+ cave:{t:"Печера",up:"home"},
+ shop:{t:"Магазин",up:"home"},
+ forge:{t:"Кузня",up:"home"},
+ rating:{t:"Рейтинг",up:"home"},
+ bag:{t:"Сумка",up:"hero"},
+ skills:{t:"Вміння",up:"hero"},
+ training:{t:"Тренування",up:"hero"},
+ treasury:{t:"Скарбниця клану",up:"clan"},
+ members:{t:"Учасники",up:"clan"},
+ chat:{t:"Чат клану",up:"clan"}
+};
+let page="home";
+function go(p){page=p;view();window.scrollTo(0,0)}
+const menu=(list)=>list.map(([p,n,d])=>
+ `<button class="item" onclick="go('${p}')">${n}${d?`<small>${d}</small>`:""}</button>`).join("");
+const stub=t=>`<div class="card"><h3>${t}</h3><p class="sub">Розділ у розробці. Скоро тут буде контент.</p></div>`;
+
+function newEnemy(){s.max=Math.floor(10*Math.pow(1.35,s.wave-1));s.hp=s.max}
+function hit(){
+  s.hp-=dmg();
   if(s.hp<=0){
-    s.gold+=Math.ceil(s.wave*3);
-    s.wave++;
+    s.gold+=s.wave*3;s.xp+=s.wave*2;s.wave++;
+    while(s.xp>=xpNeed()){s.xp-=xpNeed();s.lvl++}
     newEnemy();
   }
-  draw();
+  save();view();
 }
-function buy(t){
-  if(t==1&&s.gold>=cost1()){s.gold-=cost1();s.dmg++}
-  if(t==2&&s.gold>=cost2()){s.gold-=cost2();s.auto++}
-  draw();
-}
-function draw(){
-  $("wave").textContent=s.wave;
-  $("gold").textContent=s.gold;
-  $("dmg").textContent=s.dmg;
-  $("hp").style.width=Math.max(0,s.hp/s.max*100)+"%";
-  $("hptxt").textContent=Math.max(0,s.hp)+" / "+s.max+" HP";
-  $("b1").textContent="🗡️ Сильніший удар (+1) — "+cost1()+" 💰";
-  $("b1").disabled=s.gold<cost1();
-  $("b2").textContent="🤖 Авто-атака ("+s.auto+"/сек) — "+cost2()+" 💰";
-  $("b2").disabled=s.gold<cost2();
-  try{localStorage.setItem("boi",JSON.stringify(s))}catch(e){}
-}
-$("enemy").onclick=()=>{
-  $("enemy").classList.add("hit");
-  setTimeout(()=>$("enemy").classList.remove("hit"),80);
-  hit(s.dmg);
+function buyTrain(){if(s.gold>=trainCost()){s.gold-=trainCost();s.train++;save();view()}}
+function buyGear(i){if(s.gold>=gearCost(i)){s.gold-=gearCost(i);s.gear[i]++;save();view()}}
+function donate(){if(s.gold>=50){s.gold-=50;s.clanGold+=50;save();view()}}
+
+const R={
+ home:()=>menu([["arena","⚔️ Арена","Нескінченна битва"],
+  ["adventure","🗺️ Пригода"],["cave","🕳️ Печера"],
+  ["shop","🛒 Магазин спорядження"],["forge","🔨 Кузня","Заточка спорядження"],
+  ["rating","🏆 Рейтинг"]]),
+ hero:()=>`
+  <div class="card" style="text-align:center">
+   <h2 style="margin:0;color:#f0c050">Герой</h2>
+   <div class="sub">Рівень ${s.lvl} · Досвід ${s.xp}/${xpNeed()}</div>
+   <div>Міць: <b>${power()}</b> · Удар: <b>${dmg()}</b></div>
+  </div>
+  <div class="slots">${GEAR.map((g,i)=>
+   `<div class="slot"><span>${g[0]}</span>${g[1]}<br>+${s.gear[i]}</div>`).join("")}</div>
+  ${menu([["bag","🎒 Сумка","0/40"],["skills","✨ Вміння","0/6"],
+  ["training","💪 Тренування"]])}`,
+ clan:()=>`
+  <div class="card"><h2 style="margin:0;color:#f0c050">Легіон Нескінченності</h2>
+   <div class="sub">Рівень клану 1 · Учасників: 1</div></div>
+  ${menu([["treasury","💰 Скарбниця",s.clanGold+" золота"],
+  ["members","👥 Учасники"],["chat","💬 Чат клану"]])}`,
+ arena:()=>`
+  <div class="row"><span>Хвиля ${s.wave}</span><span>🗡️ ${dmg()}</span></div>
+  <div id="enemy" onclick="hit()">${faces[(s.wave-1)%faces.length]}</div>
+  <div class="card"><div class="bar"><div style="width:${Math.max(0,s.hp/s.max*100)}%"></div></div>
+  <p style="text-align:center">${Math.max(0,s.hp)} / ${s.max} HP</p>
+  <p class="sub" style="text-align:center">Тапай по ворогу!</p></div>`,
+ training:()=>`<div class="card"><h3>Сила удару: ${s.train}</h3>
+  <p class="sub">Кожен рівень дає +1 до удару.</p>
+  <button class="btn" ${s.gold<trainCost()?"disabled":""} onclick="buyTrain()">
+  Тренуватись — ${trainCost()} 💰</button></div>`,
+ forge:()=>GEAR.map((g,i)=>`<div class="card">
+  <b>${g[0]} ${g[1]} +${s.gear[i]}</b>
+  <button class="btn" ${s.gold<gearCost(i)?"disabled":""} onclick="buyGear(${i})">
+  Заточити — ${gearCost(i)} 💰</button></div>`).join(""),
+ treasury:()=>`<div class="card"><h3>У скарбниці: ${s.clanGold} 💰</h3>
+  <button class="btn" ${s.gold<50?"disabled":""} onclick="donate()">Внести 50 💰</button></div>`,
+ members:()=>`<div class="row"><span>Ти (Лідер)</span><span>Рівень ${s.lvl}</span></div>
+  <div class="card sub">Інших гравців додамо, коли підключимо базу даних.</div>`,
+ rating:()=>`<div class="row"><span>1. Ти</span><span>Хвиля ${s.wave}</span></div>
+  <div class="card sub">Загальний рейтинг з'явиться з базою даних.</div>`
 };
-setInterval(()=>{if(s.auto>0)hit(s.auto)},1000);
-newEnemy.call();
-if(s.hp<=0||!s.max)newEnemy();
-else $("enemy").textContent=faces[(s.wave-1)%faces.length];
-draw();
+
+function view(){
+  const p=PAGES[page];
+  $("top").innerHTML=(p.root?"":`<button id="back" onclick="go('${p.up}')">←</button>`)+
+   `<b style="flex:1">${p.t}</b><span>💰 ${s.gold}</span>`;
+  $("app").innerHTML=(R[page]||(()=>stub(p.t)))();
+  const root=p.root?page:p.up==="home"||["hero","clan"].includes(p.up)?p.up:"home";
+  document.querySelectorAll("#nav button").forEach(b=>
+   b.classList.toggle("on",b.dataset.p===root));
+}
+document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>go(b.dataset.p));
+if(!s.max||s.hp<=0)newEnemy();
+view();
 </script>
 </body>
 </html>
